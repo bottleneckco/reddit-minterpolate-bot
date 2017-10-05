@@ -5,7 +5,7 @@ const async = require('async');
 const Promise = require('bluebird');
 const ffmpeg = require('fluent-ffmpeg');
 
-const NUM_SEGMENTS = 5;
+const NUM_SEGMENTS = 1;
 
 // Promisify FFMPEG
 // See https://github.com/fluent-ffmpeg/node-fluent-ffmpeg/issues/710
@@ -13,10 +13,6 @@ const promisifyCommand = command => Promise.promisify(cb => command
   .on('end', () => { cb(null); })
   .on('error', (error) => { cb(error); })
   .run());
-
-const promisifyCommandNoRun = command => Promise.promisify(cb => command
-  .on('end', () => { cb(null); })
-  .on('error', (error) => { cb(error); }));
 
 const ffprobe = Promise.promisify(ffmpeg.ffprobe);
 const parallel = Promise.promisify(async.parallel);
