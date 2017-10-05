@@ -39,6 +39,12 @@ const processSegment = async (filePath, startTime, endTime) => {
   return outputTempPath;
 };
 
+/**
+ * Generates transcode tasks for async
+ * @param {string} filePath file path to media
+ * @param {number} maxDuration maximum duration in s
+ * @return {Array<Function>}
+ */
 const generateTasks = (filePath, maxDuration) => {
   const segmentLength = maxDuration / NUM_SEGMENTS;
   const tasks = Array(NUM_SEGMENTS)
@@ -52,10 +58,16 @@ const generateTasks = (filePath, maxDuration) => {
   return tasks.map(async.asyncify);
 };
 
-module.exports = async (sourceFile) => {
+/**
+ * Transcode a file for motion interpolation.
+ * @param {string} sourceFile file path to media
+ */
+const transcode = async (sourceFile) => {
   const sourceFilePath = path.resolve(sourceFile);
   const { format: { duration } } = await ffprobe(sourceFilePath);
 
   const results = await parallel(generateTasks(sourceFilePath, duration));
-  console.log(results);
+  return results;
 };
+
+module.exports = transcode;
