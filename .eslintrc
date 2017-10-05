@@ -1,3 +1,6 @@
 {
-  "extends": "airbnb-config-base"
+  "extends": "airbnb-base",
+  "rules": {
+    "no-console": 0
+  }
 }
