@@ -14,6 +14,10 @@ const promisifyCommand = command => Promise.promisify(cb => command
   .on('error', (error) => { cb(error); })
   .run());
 
+const promisifyCommandNoRun = command => Promise.promisify(cb => command
+  .on('end', () => { cb(null); })
+  .on('error', (error) => { cb(error); }));
+
 const ffprobe = Promise.promisify(ffmpeg.ffprobe);
 const parallel = Promise.promisify(async.parallel);
 
@@ -32,8 +36,11 @@ const processSegment = async (filePath, startTime, endTime) => {
     .setStartTime(startTime)
     .setDuration(endTime - startTime)
     .addInputOption('-threads 2')
+    .addOutputOption('-preset veryslow')
     .output(outputTempPath);
-  command.on('progress', ({ currentFps, percent }) => process.stdout.write(`Segment ${startTime}-${endTime} FPS: ${currentFps} %: ${percent}\r`));
+  command.on('progress', ({ currentFps, percent }) => {
+    process.stdout.write(`Segment ${startTime.toFixed(2)}-${endTime.toFixed(2)} FPS: ${currentFps.toFixed(2)} %: ${percent.toFixed(2)}\r`);
+  });
   await promisifyCommand(command)();
   console.log(`Finished segment of time ${startTime}-${endTime}`);
   return outputTempPath;
@@ -66,8 +73,22 @@ const transcode = async (sourceFile) => {
   const sourceFilePath = path.resolve(sourceFile);
   const { format: { duration } } = await ffprobe(sourceFilePath);
 
-  const results = await parallel(generateTasks(sourceFilePath, duration));
-  return results;
+  const processedSegmentPaths = await parallel(generateTasks(sourceFilePath, duration));
+
+  const outputFilePath = path.join(os.tmpdir(), `processed-${path.basename(sourceFilePath)}`);
+  const concatListFilePath = path.join(os.tmpdir(), `concat-${path.basename(sourceFilePath)}.txt`);
+
+  fs.writeFileSync(concatListFilePath, processedSegmentPaths.map(segmentPath => `file '${path.basename(segmentPath)}'`).join('\n'));
+
+  const command = ffmpeg(concatListFilePath)
+    .inputFormat('concat')
+    .videoCodec('copy')
+    .audioCodec('copy')
+    .output(outputFilePath);
+
+  await promisifyCommand(command)();
+  processedSegmentPaths.forEach(fs.unlinkSync);
+  return outputFilePath;
 };
 
 module.exports = transcode;
